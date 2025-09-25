@@ -4,6 +4,8 @@ from flask_cors import CORS
 from pydantic import ValidationError
 from models import SurveySubmission, StoredSurveyRecord
 from storage import append_json_line
+import hashlib
+
 
 app = Flask(__name__)
 # Allow cross-origin requests so the static HTML can POST from localhost or file://
@@ -18,6 +20,12 @@ def ping():
         "utc_time": datetime.now(timezone.utc).isoformat()
     })
 
+def sha256_hex(s: str) -> str:
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
+
+
+
+
 @app.post("/v1/survey")
 def submit_survey():
     payload = request.get_json(silent=True)
@@ -29,13 +37,36 @@ def submit_survey():
     except ValidationError as ve:
         return jsonify({"error": "validation_error", "detail": ve.errors()}), 422
 
+    # user_agent: prefer payload, else header
+    ua = submission.user_agent or request.headers.get("User-Agent")
+
+# hash PII (never store raw)
+    email_hash = sha256_hex(submission.email) if submission.email else None
+    age_hash = sha256_hex(str(submission.age)) if submission.age is not None else None
+
+# submission_id: use provided or compute sha256(email + UTC YYYYMMDDHH)
+    if submission.submission_id:
+        sub_id = submission.submission_id
+    else:
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H")
+        base = (submission.email or "") + stamp
+        sub_id = sha256_hex(base)
+
     record = StoredSurveyRecord(
-        **submission.dict(),
+        submission_id=sub_id,
+        user_agent=ua,
+        email_hash=email_hash,
+        age_hash=age_hash,
         received_at=datetime.now(timezone.utc),
-        ip=request.headers.get("X-Forwarded-For", request.remote_addr or "")
+        ip=request.headers.get("X-Forwarded-For", request.remote_addr or ""),
+    # pass through non-PII fields you already collect
+        name=submission.name,
+        rating=submission.rating,
+        comments=submission.comments,
+        consent=submission.consent,
     )
     append_json_line(record.dict())
-    return jsonify({"status": "ok"}), 201
+    return jsonify({"status": "ok", "submission_id": sub_id}), 201
 
 if __name__ == "__main__":
     app.run(port=0, debug=True)

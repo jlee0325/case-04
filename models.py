@@ -6,6 +6,10 @@ class SurveySubmission(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     email: EmailStr
     age: int = Field(..., ge=13, le=120)
+
+    user_agent: Optional[str] = None
+    submission_id: Optional[str] = None
+
     consent: bool = Field(..., description="Must be true to accept")
     rating: int = Field(..., ge=1, le=5)
     comments: Optional[str] = Field(None, max_length=1000)
@@ -23,5 +27,15 @@ class SurveySubmission(BaseModel):
         
 #Good example of inheritance
 class StoredSurveyRecord(SurveySubmission):
+    submission_id: str
+    user_agent: Optional[str] = None
+    email_hash: Optional[str] = None
+    age_hash: Optional[str] = None
+
     received_at: datetime
     ip: str
+
+    name: str
+    rating: int
+    comments: Optional[str] = None
+    consent: bool
