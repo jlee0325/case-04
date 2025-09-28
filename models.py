@@ -24,7 +24,6 @@ class SurveySubmission(BaseModel):
         return v
 
 class StoredSurveyRecord(BaseModel):
-    class StoredSurveyRecord(BaseModel):
     submission_id: str
     user_agent: Optional[str] = None
     hashed_email: Optional[str] = None
