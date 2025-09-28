@@ -10,7 +10,6 @@ class SurveySubmission(BaseModel):
     rating: int = Field(..., ge=1, le=5)
     comments: Optional[str] = Field(None, max_length=1000)
 
-    # REQUIRED BY SPEC (optional in requests)
     user_agent: Optional[str] = None
     submission_id: Optional[str] = None
 
@@ -25,16 +24,13 @@ class SurveySubmission(BaseModel):
         return v
 
 class StoredSurveyRecord(BaseModel):
-    # DO NOT inherit SurveySubmission; store only hashed PII
+    class StoredSurveyRecord(BaseModel):
     submission_id: str
     user_agent: Optional[str] = None
-    email_hash: Optional[str] = None
-    age_hash: Optional[str] = None
-
+    hashed_email: Optional[str] = None
+    hashed_age: Optional[str] = None
     received_at: datetime
     ip: str
-
-    # non-PII carried through
     name: str
     rating: int
     comments: Optional[str] = None
